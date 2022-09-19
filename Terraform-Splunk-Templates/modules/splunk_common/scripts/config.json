@@ -1,0 +1,77 @@
+{
+    "agent": {
+            "metrics_collection_interval": 60,
+            "run_as_user": "root"
+    },
+    "metrics": {
+            "append_dimensions": {
+                    "InstanceId": "${aws:InstanceId}"
+            },
+            "metrics_collected": {
+                    "collectd": {
+                            "metrics_aggregation_interval": 60
+                    },
+                    "cpu": {
+                            "measurement": [
+                                    "cpu_usage_idle",
+                                    "cpu_usage_iowait",
+                                    "cpu_usage_user",
+                                    "cpu_usage_system"
+                            ],
+                            "metrics_collection_interval": 60,
+                            "totalcpu": false,
+                            "resources": [
+                   "*"
+                            ]
+                    },
+                    "disk": {
+                            "measurement": [
+                                    "used_percent",
+                                    "disk_total",
+                                    "disk_free",
+                                    "disk_used"
+                            ],
+                            "metrics_collection_interval": 60,
+                            "resources": [
+                                    "*"
+                            ]
+                    },
+                    "diskio": {
+                            "measurement": [
+                                    "io_time",
+                                    "write_bytes",
+                                    "read_bytes",
+                                    "writes",
+                                    "reads"
+                            ],
+                            "metrics_collection_interval": 60,
+                            "resources": [
+                                    "*"
+                            ]
+                    },                        
+                    "mem": {
+                            "measurement": [
+                                    "mem_used_percent",
+                                    "mem_available",
+                                    "mem_cached",
+                                    "mem_free",
+                                    "mem_total"
+                            ],
+                            "metrics_collection_interval": 60
+                    },
+                    "statsd": {
+                            "metrics_aggregation_interval": 60,
+                            "metrics_collection_interval": 30,
+                            "service_address": ":8125"
+                    },
+                    "swap": {
+                            "measurement": [
+                                    "swap_used_percent",
+                                    "swap_free",
+                                    "swap_used"
+                            ],
+                            "metrics_collection_interval": 60
+                    }
+            }
+    }
+}

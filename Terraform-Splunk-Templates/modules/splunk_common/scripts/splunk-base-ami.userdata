@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+# This should be used as the userdata for Image Builder to build the splunk-base-ami AMI image.
+
+set -e
+export AVAILABILITY_ZONE=$(curl -sLf http://112.xxx.xxx.xxx/latest/meta-data/placement/availability-zone)
+export INSTANCE_ID=$(curl -sLf http://112.xxx.xxx.xxx/latest/meta-data/instance-id)
+export AWS_REGION=$(curl -s 112.xxx.xxx.xxx/latest/meta-data/placement/availability-zone | sed 's/.$//')
+export NEW_HOSTNAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCE_ID}" --region $AWS_REGION --output=text|  grep "\sName" |awk '{print $5}')
+export NEW_FQDN=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCE_ID}" --region $AWS_REGION --output=text|  grep "asg:hostname" |awk '{print $5}' |sed 's/@.*//')
+export AWS_ACCOUNT=$(aws sts get-caller-identity |grep Account |awk '{print $2}' |sed 's/\"\,//'|sed 's/\"//')
+export AWS_ALIAS=$(aws iam list-account-aliases --output text --query AccountAliases)
+export S3_CONFIG_BUCKET=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCE_ID}" "Name=key,Values=S3_Config_Bucket" --region $AWS_REGION --output=text | cut -f5)
+
+# Create splunk user
+useradd -m -r splunk
+
+# Copy down initial config scripts from S3
+aws s3 sync s3://${S3_CONFIG_BUCKET}/splunk-base-ami /
+
+# Add .sprun to .bashrc for splunk user
+cat >> /home/splunk/.bashrc << EOF
+# Call .sprun script to add aliases, etc.
+if [ -f ~/.sprun ]; then
+     . ~/.sprun
+fi
+EOF
+
+#Install CloudWatch agent:
+#  yum install -y amazon-cloudwatch-agent
+mkdir /usr/share/collectd
+touch /usr/share/collectd/types.db
+
+# Update sudo rights for splunk user by creating /etc/sudoers.d/splunk:
+cat >> /etc/sudoers.d/splunk << EOF
+# Allow splunk to start/stop the service
+splunk	ALL=(root) NOPASSWD: /usr/bin/systemctl * Splunkd*
+splunk  ALL=(root) NOPASSWD: /opt/splunk/bin/splunk
+EOF
+
+# Follow the instructions at https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/al2-live-patching.html to install and set up live patching of the kernel (all as root):
+yum -y install binutils
+yum -y install yum-plugin-kernel-livepatch
+yum kernel-livcepatch enable -y
+yum install -y kpatch-runtime
+yum update -y kpatch-runtime
+systemctl enable kpatch.service
+amazon-linux-extras enable livepatch
+yum update -y
+# Install and configure yum-cron:
+yum -y install yum-cron
+# vi /etc/yum/yum-cron.conf, and set update_cmd=default
+systemctl enable yum-cron.service
+systemctl start yum-cron.service
+systemctl status yum-cron.service

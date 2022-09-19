@@ -1,0 +1,36 @@
+
+resource "aws_instance" "tableau_server" {
+  count   = var.cluster_count
+  ami = var.windows_ami
+  instance_type = var.instance_type
+  vpc_security_group_ids = ["${aws_security_group.winservers_sg.id}"]
+  subnet_id   = var.app_subnets[count.index % length(var.app_subnets)]
+  key_name = var.key_name
+  private_ip = var.tablueu_ips[count.index]
+
+  #user_data_base64 = base64encode(
+  #  file(
+  #    "${path.module}/apps/mobilenow-web/bootstrap${var.s3_sufix}.sh",
+  #  ),
+  #)
+
+  tags = merge(
+  local.common_tags,
+  {
+    "Name" = "${var.tag_prefix}_Instance_${count.index+1}"
+  },
+  )
+
+  root_block_device {
+    volume_type = "gp2"
+    volume_size = "50"
+    delete_on_termination = true
+  }
+
+  ebs_block_device {
+    device_name = "/dev/sdd"
+    volume_size = 100
+    volume_type = "gp2"
+    delete_on_termination = true
+  }
+}
